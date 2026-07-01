@@ -11,7 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools','Arm_lib','smbus'],
     zip_safe=True,
     maintainer='root',
     maintainer_email='yamashitaaoi1230@icloud.com',
