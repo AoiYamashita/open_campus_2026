@@ -8,7 +8,7 @@ class Arm_Device(object):
 
     def __init__(self):
         self.addr = 0x15
-        self.bus = smbus.SMBus(1)
+        self.bus = smbus.SMBus(7)
 
     # 设置总线舵机角度接口：id: 1-6(0是发6个舵机) angle: 0-180 设置舵机要运动到的角度
     def Arm_serial_servo_write(self, id, angle, time):
@@ -44,10 +44,10 @@ class Arm_Device(object):
             value_L = pos & 0xFF
             time_H = (time >> 8) & 0xFF
             time_L = time & 0xFF
-            # try:
-            self.bus.write_i2c_block_data(self.addr, 0x10 + id, [value_H, value_L, time_H, time_L])
-            # except:
-            #     print('Arm_serial_servo_write I2C error')
+            try:
+                self.bus.write_i2c_block_data(self.addr, 0x10 + id, [value_H, value_L, time_H, time_L])
+            except:
+                print('Arm_serial_servo_write I2C error')
 
     # 设置任意总线舵机角度接口：id: 1-250(0是群发) angle: 0-180  表示900 3100   0 - 180
     def Arm_serial_servo_write_any(self, id, angle, time):
