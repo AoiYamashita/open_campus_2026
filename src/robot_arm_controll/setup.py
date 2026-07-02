@@ -14,7 +14,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join("share",package_name),glob("launch/*.launch.py"))
     ],
-    install_requires=['setuptools','Arm_lib','smbus'],
+    install_requires=['setuptools','Arm_lib','smbus','tkinter'],
     zip_safe=True,
     maintainer='root',
     maintainer_email='yamashitaaoi1230@icloud.com',
@@ -27,7 +27,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            "controll = robot_arm_controll.controll:main"
+            "controll = robot_arm_controll.controll:main",
+            "app = robot_arm_controll.controll_app:main"
         ],
     },
 )

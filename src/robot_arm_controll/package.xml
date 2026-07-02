@@ -11,6 +11,7 @@
   <depend>std_msgs</depend>
   <depend>Arm_lib</depend>
   <depend>smbus</depend>
+  <depend>tkinter</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
