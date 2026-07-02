@@ -1,12 +1,12 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import UInt8
-from Arm_Lib import Arm_Device
+from . import Arm_Lib
 
 class Controller(Node):
     def __init__(self):
         super().__init__("controller")
-        self.arm = Arm_Device()
+        self.arm = Arm_Lib.Arm_Device()
         # self.publisher = self.create_publisher(UInt8,"topic",10)
         self.timer = self.create_timer(3.0,self.cb)
         self.number = 0
