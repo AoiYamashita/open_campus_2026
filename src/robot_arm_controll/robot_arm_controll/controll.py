@@ -81,32 +81,26 @@ class Controller(Node):
 
             args = self.servo_deg_arr.copy()
             args[0] = int(180*np.arctan2(z,x)/np.pi)
-            dx = (R3_L+HAND)*np.cos(np.pi*entry_arg/180)
+            dr = (R3_L+HAND)*np.cos(np.pi*entry_arg/180)
             dy = (R3_L+HAND)*np.sin(np.pi*entry_arg/180)
-            x2 = np.sqrt(x**2+z**2) - dx
+            r2 = np.sqrt(x**2+z**2) - dr
             y2 = y - dy
         
-            self.get_logger().info(f"{np.sqrt(x**2+z**2)},{y},{x2},{y2}")
+            self.get_logger().info(f"{np.sqrt(x**2+z**2)},{y},{r2},{y2}")
 
-            cos_value = (x2**2+y2**2+R1_L**2-R2_L**2)/(2*R1_L*np.sqrt(x2**2+y2**2))
+            cos_value = (r2**2+y2**2+R1_L**2-R2_L**2)/(2*R1_L*np.sqrt(r2**2+y2**2))
             if cos_value > 1:
                 cos_value = 1
             if cos_value < -1:
                 cos_value = -1
 
-            theta1 = np.arccos(cos_value)\
-                    +np.arctan(y2/x2)
+            theta1 = np.arccos(cos_value)+np.arctan2(y2,r2)
         
-            theta2 = np.arctan((y2-R1_L*np.sin(theta1))/(x2-R1_L*np.cos(theta1)))-theta1+np.pi/2.0
-
-            if theta1 < 0 or theta2 < 0 or theta1 > 180 or theta2 > 180:
-                theta1 = -np.arccos(cos_value)\
-                        +np.arctan(y2/x2)
-                theta2 = np.arctan((y2-R1_L*np.sin(theta1))/(x2-R1_L*np.cos(theta1)))-theta1+np.pi/2.0
+            theta2 = np.arctan2(y2-R1_L*np.sin(theta1),r2-R1_L*np.cos(theta1))-theta1+np.pi/2.0
 
             args[1] = int(180*theta1/np.pi)
             args[2] = int(180*theta2/np.pi)
-            args[3] = (720+(entry_arg-args[1]-args[2]+180))%360
+            args[3] = entry_arg-args[1]-args[2]+180
             args[4] = hand_arg
             args[5] = hand_open
 
@@ -115,7 +109,6 @@ class Controller(Node):
             # self.get_logger().info(f"{args}")
             servo_time = max_ddeg*100 # ms
             for id,i in enumerate(args):
-                # self.get_logger().info(f"{id}")
                 self.arm.Arm_serial_servo_write(id+1,int(i),int(servo_time))
                 time.sleep(0.02)
             time.sleep(np.max([0.05,servo_time/1000.0]))
