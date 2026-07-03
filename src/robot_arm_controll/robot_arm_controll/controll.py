@@ -81,10 +81,20 @@ class Controller(Node):
 
             args = self.servo_deg_arr.copy()
             args[0] = int(180*np.arctan2(z,x)/np.pi)
+
             dr = (R3_L+HAND)*np.cos(np.pi*entry_arg/180)
             dy = (R3_L+HAND)*np.sin(np.pi*entry_arg/180)
             r2 = np.sqrt(x**2+z**2) - dr
             y2 = y - dy
+
+            if np.sqrt(r2**2+y2**2) > R1_L+R2_L:
+                st_arg = np.arctan2(y2,r2)
+                dr = (R3_L+HAND)*np.cos(st_arg)
+                dy = (R3_L+HAND)*np.sin(st_arg)
+                r2 = np.sqrt(x**2+z**2) - dr
+                y2 = y - dy
+                entry_arg = int(180*st_arg/np.pi)
+                pass
         
             self.get_logger().info(f"{np.sqrt(x**2+z**2)},{y},{r2},{y2}")
 
@@ -100,7 +110,7 @@ class Controller(Node):
 
             args[1] = int(180*theta1/np.pi)
             args[2] = int(180*theta2/np.pi)
-            args[3] = entry_arg-args[1]-args[2]+180
+            args[3] = int(entry_arg-180*theta1/np.pi-180*theta2/np.pi+180)
             args[4] = hand_arg
             args[5] = hand_open
 
