@@ -89,7 +89,7 @@ class controll_app(Node):
         if event.keysym[0:5] == "e":
             self.coordinate[1] -= 10
 
-        self.get_logger().info(f"{self.coordinate}")
+        self.get_logger().info(f"coordinate : {self.coordinate}")
         
         msg = Float64MultiArray()
         msg.data = self.coordinate

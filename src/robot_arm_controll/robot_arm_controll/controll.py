@@ -99,7 +99,7 @@ class Controller(Node):
         
             theta2 = np.arctan((y2-R1_L*np.sin(theta1))/(x2-R1_L*np.cos(theta1)))-theta1+np.pi/2.0
 
-            if theta1 < 0 or theta2 < 0:
+            if theta1 < 0 or theta2 < 0 or theta1 > 180 or theta2 > 180:
                 theta1 = -np.arccos(cos_value)\
                         +np.arctan(y2/x2)
                 theta2 = np.arctan((y2-R1_L*np.sin(theta1))/(x2-R1_L*np.cos(theta1)))-theta1+np.pi/2.0
