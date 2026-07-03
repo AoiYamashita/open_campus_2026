@@ -76,18 +76,18 @@ class controll_app(Node):
         self.get_logger().info(f"Key pressed: {event.keysym}")
 
         if event.keysym == "w":
-            self.coordinate[2] += 1
+            self.coordinate[2] += 10
         if event.keysym == "a":
-            self.coordinate[0] -= 1
+            self.coordinate[0] -= 10
         if event.keysym == "s":
-            self.coordinate[2] -= 1
+            self.coordinate[2] -= 10
         if event.keysym == "d":
-            self.coordinate[0] += 1
+            self.coordinate[0] += 10
         
         if event.keysym == "q":
-            self.coordinate[1] += 1
+            self.coordinate[1] += 10
         if event.keysym[0:5] == "e":
-            self.coordinate[1] -= 1
+            self.coordinate[1] -= 10
 
         self.get_logger().info(f"{self.coordinate}")
         
@@ -98,11 +98,13 @@ class controll_app(Node):
     def hand_posision(self,msg):
         arr = msg.data
 
-        pos_text = "x:{:5.2f}\ry:{:5.2f}\rx:{:5.2f}\r\rEntry Deg:{: 3}\r\rHand Deg:{: 3}\r\rOpen Close:{: 3}".format(arr[0],arr[1],arr[2],arr[3],arr[4],arr[5])
+        pos_text = "x:{:5.2f}\ry:{:5.2f}\rz:{:5.2f}\r\rEntry Deg:{: 3}\r\rHand Deg:{: 3}\r\rOpen Close:{: 3}".format(arr[0],arr[1],arr[2],arr[3],arr[4],arr[5])
         self.hand_pos_label.config(text=pos_text)
 
         if self.reset_pos_flag:
             self.coordinate = arr
+        else:
+            self.coordinate[3:] = arr[3:]
         self.reset_pos_flag = False
 
     def scale_change(self,value):# scale data pub
