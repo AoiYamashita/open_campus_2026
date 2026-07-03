@@ -81,7 +81,14 @@ class Controller(Node):
         dy = (R3_L+HAND)*np.sin(np.pi*entry_arg/180)
         x2 = x - dx
         y2 = y - dy
-        theta1 = np.arccos((x2**2+y2**2+R1_L**2-R2_L**2)/(2*R1_L*np.sqrt(x2**2+y2**2)))\
+        
+        cos_value = (x2**2+y2**2+R1_L**2-R2_L**2)/(2*R1_L*np.sqrt(x2**2+y2**2))
+        if cos_value > 1:
+            cos_value = 1
+        if cos_value < -1:
+            cos_value = -1
+
+        theta1 = np.arccos(cos_value)\
                 +np.arctan(y2/x2)
         theta2 = np.arctan((y2-R1_L*np.sin(theta1))/(x2-R1_L*np.cos(theta1)))-theta1
 
