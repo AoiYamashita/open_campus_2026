@@ -14,7 +14,13 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join("share",package_name),glob("launch/*.launch.py"))
     ],
-    install_requires=['setuptools','Arm_lib','smbus','tkinter','opencv-python'],
+    install_requires=[
+        'setuptools',
+        'Arm_lib',
+        'smbus',
+        'tkinter',
+        'opencv-python',
+        ],
     zip_safe=True,
     maintainer='root',
     maintainer_email='yamashitaaoi1230@icloud.com',
