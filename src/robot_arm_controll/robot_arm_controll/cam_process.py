@@ -12,9 +12,9 @@ class Cam_pro(Node):
     def __init__(self):
         super().__init__("cam_process")
         # self.get_logger().info("start process")
-        # self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(0)
 
-        # self.timer = self.create_timer(0.1,self.cb)
+        self.timer = self.create_timer(0.1,self.cb)
 
     def cb(self):
         ret, frame = self.cap.read()
