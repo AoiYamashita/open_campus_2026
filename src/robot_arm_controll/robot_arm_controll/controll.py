@@ -17,17 +17,22 @@ HAND = 50.0
 class Controller(Node):
     def __init__(self):
         super().__init__("controller")
+
+        self.arm = Arm_Lib.Arm_Device()
+
+        self.servo_deg_arr = [0,0,0,0,0,0]
+        self.order_arr = [0,0,0,0,0,0]
+        self.initflag = True
+        self.number = 0
+
         self.servo_pub = self.create_publisher(Int32MultiArray,"arm_args",10)
         self.servo_sub = self.create_subscription(Int32MultiArray,"arm_order",self.app_order,1)
         self.hand_pub = self.create_publisher(Float64MultiArray,"hand_pos",10)
         self.hand_sub = self.create_subscription(Float64MultiArray,"hand_order",self.hand_pos_order,10)
 
         self.timer = self.create_timer(0.1,self.cb)
+        self.co_timer = self.create_timer(0.1,self.arm_controll_pro)
 
-        self.arm = Arm_Lib.Arm_Device()
-
-        self.servo_deg_arr = [0,0,0,0,0,0]
-        self.number = 0
 
         # angle = [90,90,90,90,90,30]
         # for i in range(1,7):
@@ -38,7 +43,7 @@ class Controller(Node):
         for i in range(1,7):
             deg = self.arm.Arm_serial_servo_read(i)
             if deg is None:
-                deg = 90
+                deg = self.servo_deg_arr[i-1]
             deg_arr.append(deg)
         
         msg = Int32MultiArray()
@@ -68,62 +73,107 @@ class Controller(Node):
             self.arm.Arm_serial_servo_write(id+1,i,servo_time)
             time.sleep(0.02)
         time.sleep(np.max([0.05,servo_time/1000.0]))
+    def arm_controll_pro(self):
+        if self.initflag:
+            return
+        arr = self.order_arr.copy()
+        x = arr[0]
+        y = arr[1]
+        z = arr[2]
+        entry_deg = arr[3]
+        if entry_deg > 180:
+            entry_deg = entry_deg-360
+        hand_deg = arr[4]
+        hand_open = arr[5]
+        clip_arg = np.pi/3
 
+        degs = self.servo_deg_arr.copy()
+        degs[0] = int(180*np.arctan2(z,x)/np.pi)
+        degs[4] = hand_deg
+        degs[5] = hand_open
+
+        R = np.sqrt(x**2+z**2)
+        Y = y
+        
+        now_args = np.radians(degs)
+        delta = np.zeros(3)
+        
+        for _ in range(100):
+            now_R = np.array([
+                R1_L*np.cos(now_args[1]),
+                R2_L*np.cos(now_args[1]+now_args[2]-np.pi/2.0),
+                (R3_L+HAND)*np.cos(now_args[1]+now_args[2]+now_args[3]-np.pi)
+            ])
+            
+            now_Y = np.array([
+                R1_L*np.sin(now_args[1]),
+                R2_L*np.sin(now_args[1]+now_args[2]-np.pi/2.0),
+                (R3_L+HAND)*np.sin(now_args[1]+now_args[2]+now_args[3]-np.pi)
+            ])
+
+            J = np.array([
+                [np.sum(now_Y),
+                np.sum(now_Y[1:]),
+                np.sum(now_Y[2:])],
+                [-np.sum(now_R    ),
+                -np.sum(now_R[1:]),
+                -np.sum(now_R[2:]),],
+            ])
+
+            e = np.array([
+                R - np.sum(now_R),
+                Y - np.sum(now_Y),
+            ])
+
+            H = J.T@J
+
+            g = J.T@e
+
+            J_ea = np.array([
+                1,1,1
+            ])
+
+            e_ea = (np.radians(entry_deg)-(now_args[1]+now_args[2]+now_args[3]-np.pi))
+
+            H_ea = np.dot(J_ea.T,J_ea)
+            g_ea = -J_ea.T*e_ea
+
+            a = 10
+            b = 10
+
+            alpha = 0#1/(1+np.exp(a*(np.linalg.norm(e)-b)))
+
+            d = - (1-alpha)*np.linalg.solve(H+np.eye(3)*1e-10,g.T)\
+                - alpha*np.linalg.solve(H_ea+np.eye(3)*1e-10,g_ea.T)
+            
+            delta += d
+            now_args[1:4] += d
+
+            now_args = np.clip(now_args,0,np.pi)
+
+            clip_delta = delta-np.clip(delta,-clip_arg,clip_arg)
+
+            if np.linalg.norm(clip_delta) > 0:
+                break
+
+        delta = np.clip(delta,-clip_arg,clip_arg)
+
+        degs[1:4] += np.degrees(delta)
+
+        self.get_logger().info(f"{degs}")
+
+        max_ddeg = np.max(abs(np.degrees(delta)))
+
+        servo_time = 50*max_ddeg # ms
+
+        for id,i in enumerate(degs):
+            self.arm.Arm_serial_servo_write(id+1,int(i),int(servo_time))
+            time.sleep(0.05)
+        time.sleep(servo_time*1.1/1000)
+        
     def hand_pos_order(self,msg):
-        try:
-            arr = msg.data
-            x = arr[0]
-            y = arr[1]
-            z = arr[2]
-            entry_arg = arr[3]
-            hand_arg = arr[4]
-            hand_open = arr[5]
-
-            args = self.servo_deg_arr.copy()
-            args[0] = int(180*np.arctan2(z,x)/np.pi)
-
-            dr = (R3_L+HAND)*np.cos(np.pi*entry_arg/180)
-            dy = (R3_L+HAND)*np.sin(np.pi*entry_arg/180)
-            r2 = np.sqrt(x**2+z**2) - dr
-            y2 = y - dy
-
-            if np.sqrt(r2**2+y2**2) > R1_L+R2_L:
-                st_arg = np.arctan2(y2,r2)
-                dr = (R3_L+HAND)*np.cos(st_arg)
-                dy = (R3_L+HAND)*np.sin(st_arg)
-                r2 = np.sqrt(x**2+z**2) - dr
-                y2 = y - dy
-                entry_arg = int(180*st_arg/np.pi)
-                pass
-        
-            self.get_logger().info(f"{np.sqrt(x**2+z**2)},{y},{r2},{y2}")
-
-            cos_value = (r2**2+y2**2+R1_L**2-R2_L**2)/(2*R1_L*np.sqrt(r2**2+y2**2))
-            if cos_value > 1:
-                cos_value = 1
-            if cos_value < -1:
-                cos_value = -1
-
-            theta1 = np.arccos(cos_value)+np.arctan2(y2,r2)
-        
-            theta2 = np.arctan2(y2-R1_L*np.sin(theta1),r2-R1_L*np.cos(theta1))-theta1+np.pi/2.0
-
-            args[1] = int(180*theta1/np.pi)
-            args[2] = int(180*theta2/np.pi)
-            args[3] = int(entry_arg-180*theta1/np.pi-180*theta2/np.pi+180)
-            args[4] = hand_arg
-            args[5] = hand_open
-
-            max_ddeg = np.max(abs(np.array(args)-np.array(self.servo_deg_arr)))
-        
-            # self.get_logger().info(f"{args}")
-            servo_time = max_ddeg*100 # ms
-            for id,i in enumerate(args):
-                self.arm.Arm_serial_servo_write(id+1,int(i),int(servo_time))
-                time.sleep(0.02)
-            time.sleep(np.max([0.05,servo_time/1000.0]))
-        except:
-            pass
+        self.initflag = False
+        self.order_arr = np.array(msg.data)
 
 def main():
     rclpy.init()

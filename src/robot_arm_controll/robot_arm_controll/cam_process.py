@@ -7,6 +7,7 @@ from std_msgs.msg import Float64MultiArray
 
 import numpy as np
 import cv2
+import cv2.aruco as aruco
 
 class Cam_pro(Node):
     def __init__(self):
@@ -19,8 +20,14 @@ class Cam_pro(Node):
     def cb(self):
         ret, frame = self.cap.read()
         if ret == True:
-            # フレームを表示
-            cv2.imshow('Webcam Live', frame)
+            corners, ids, rejected_img_points = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+
+            if ids is not None:
+                # マーカーに枠とIDを描画
+                aruco.drawDetectedMarkers(frame, corners, ids)
+
+            # 結果の表示
+            cv2.imshow("AR Marker Detection", frame)
 
             # 'q'キーが押されたらループから抜ける
             if cv2.waitKey(1) & 0xFF == ord('q'):

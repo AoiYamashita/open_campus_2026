@@ -88,6 +88,12 @@ class controll_app(Node):
             self.coordinate[1] += 10
         if event.keysym[0:5] == "e":
             self.coordinate[1] -= 10
+        
+        if event.keysym == "h":
+            if self.coordinate[5] < 130:
+                self.coordinate[5] = 170
+            else:
+                self.coordinate[5] = 90
 
         self.get_logger().info(f"coordinate : {self.coordinate}")
         
