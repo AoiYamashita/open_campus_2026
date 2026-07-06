@@ -16,18 +16,23 @@ class Cam_pro(Node):
         self.cap = cv2.VideoCapture(0)
 
         self.timer = self.create_timer(0.1,self.cb)
+        self.parameters = aruco.DetectorParameters_create()
+        self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_APRILTAG_36h11)
+
 
     def cb(self):
         ret, frame = self.cap.read()
         if ret == True:
-            corners, ids, rejected_img_points = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+
+            corners, ids, rejected_img_points = aruco.detectMarkers(frame, self.aruco_dict, parameters=self.parameters)
 
             if ids is not None:
                 # マーカーに枠とIDを描画
                 aruco.drawDetectedMarkers(frame, corners, ids)
+            # フレームを表示
+            cv2.imshow('Webcam Live', frame)
 
-            # 結果の表示
-            cv2.imshow("AR Marker Detection", frame)
+            self.get_logger().info(f"{corners}")
 
             # 'q'キーが押されたらループから抜ける
             if cv2.waitKey(1) & 0xFF == ord('q'):
