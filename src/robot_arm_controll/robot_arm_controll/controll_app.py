@@ -13,7 +13,7 @@ import tkinter as tk
 class controll_app(Node):
     def __init__(self):
         super().__init__("cont_app")
-        self.servo_sub = self.create_subscription(Int32MultiArray,"arm_args",self.servo_args,1)
+        self.servo_sub = self.create_subscription(Int32MultiArray,"arm_degs",self.servo_args,1)
         self.servo_pub = self.create_publisher(Int32MultiArray,"arm_order",10)
         
         self.hand_pub = self.create_publisher(Float64MultiArray,"hand_order",10)

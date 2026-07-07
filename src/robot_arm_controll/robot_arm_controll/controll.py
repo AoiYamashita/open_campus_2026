@@ -25,7 +25,7 @@ class Controller(Node):
         self.initflag = True
         self.number = 0
 
-        self.servo_pub = self.create_publisher(Int32MultiArray,"arm_args",10)
+        self.servo_pub = self.create_publisher(Int32MultiArray,"arm_degs",10)
         self.servo_sub = self.create_subscription(Int32MultiArray,"arm_order",self.app_order,1)
         self.hand_pub = self.create_publisher(Float64MultiArray,"hand_pos",10)
         self.hand_sub = self.create_subscription(Float64MultiArray,"hand_order",self.hand_pos_order,10)
@@ -80,9 +80,9 @@ class Controller(Node):
         x = arr[0]
         y = arr[1]
         z = arr[2]
-        entry_deg = arr[3]
-        if entry_deg > 180:
-            entry_deg = entry_deg-360
+        entry_deg = -45#arr[3]
+        # if entry_deg > 180:
+        #     entry_deg = entry_deg-360
         hand_deg = arr[4]
         hand_open = arr[5]
         clip_arg = np.pi/3
@@ -141,7 +141,7 @@ class Controller(Node):
             a = 10
             b = 10
 
-            alpha = 0#1/(1+np.exp(a*(np.linalg.norm(e)-b)))
+            alpha = 1/(1+np.exp(a*(np.linalg.norm(e)-b)))
 
             d = - (1-alpha)*np.linalg.solve(H+np.eye(3)*1e-10,g.T)\
                 - alpha*np.linalg.solve(H_ea+np.eye(3)*1e-10,g_ea.T)
