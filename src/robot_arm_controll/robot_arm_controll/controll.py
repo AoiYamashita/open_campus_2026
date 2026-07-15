@@ -11,8 +11,8 @@ import time
 
 R1_L = 82.85
 R2_L = 82.85
-R3_L = 79.05
-HAND = 50.0
+R3_L = 75
+HAND = 115.0
 
 class Controller(Node):
     def __init__(self):
@@ -98,7 +98,7 @@ class Controller(Node):
         now_args = np.radians(degs)
         delta = np.zeros(3)
         
-        for _ in range(100):
+        for _ in range(200):
             now_R = np.array([
                 R1_L*np.cos(now_args[1]),
                 R2_L*np.cos(now_args[1]+now_args[2]-np.pi/2.0),
@@ -141,7 +141,7 @@ class Controller(Node):
             a = 10
             b = 10
 
-            alpha = 1/(1+np.exp(a*(np.linalg.norm(e)-b)))
+            alpha = 0#1/(1+np.exp(a*(np.linalg.norm(e)-b)))
 
             d = - (1-alpha)*np.linalg.solve(H+np.eye(3)*1e-10,g.T)\
                 - alpha*np.linalg.solve(H_ea+np.eye(3)*1e-10,g_ea.T)
