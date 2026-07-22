@@ -16,7 +16,6 @@ setup(
     ],
     install_requires=[
         'setuptools',
-        'Arm_lib',
         'smbus',
         'tkinter',
         'opencv-python',

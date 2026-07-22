@@ -10,28 +10,43 @@ import cv2
 import cv2.aruco as aruco
 from ultralytics import YOLO
 import time
+from logging import getLogger
+
 
 class YoloPro(Node):
     def __init__(self):
         super().__init__("yolo_process")
+        logger = getLogger('ultralytics')
+        logger.disabled = True
+
         # self.get_logger().info("start process")
         self.cap = cv2.VideoCapture(0,cv2.CAP_V4L2)
+        self.cam_h = 480
+        self.cam_w = 640
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,self.cam_h)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.cam_w)
+
         self.deg_sub = self.create_subscription(Int32MultiArray,"arm_degs",self.get_degs,1)
         self.servo_sub = self.create_subscription(Float64MultiArray,"hand_pos",self.get_pos,1)
 
         self.hand_pub = self.create_publisher(Float64MultiArray,"hand_order",10)
-        self.model = YOLO("/root/open_campus_2026/src/robot_arm_controll/robot_arm_controll/best.pt")
+        self.model = YOLO("/root/open_campus_2026/src/robot_arm_controll/robot_arm_controll/best.pt",
+                        verbose=False)
 
         self.timer = self.create_timer(0.03,self.cb)
+        self.makeWorldCoord = self.create_timer(0.03,self.image2world)
 
         self.mtx = np.load("/root/open_campus_2026/src/robot_arm_controll/robot_arm_controll/mtx.npy")
         self.dist = np.load("/root/open_campus_2026/src/robot_arm_controll/robot_arm_controll/dist.npy")
         self.marker_length = 0.02 # [m]
 
+        self.detections = []
         self.arm_args = [0,0]
         self.arm_pos = [0,0,0]
 
         self.wait_time = 0
+
+        self.book_y = -100
 
     def get_degs(self,msg):
         degs = msg.data
@@ -40,14 +55,67 @@ class YoloPro(Node):
     def get_pos(self,msg):
         pos = msg.data
         self.arm_pos = np.array(pos[0:3])
+
+    def cvtcam2wor(self,x,y,z,Camera_coordinate):
+        arm_args_0 = self.arm_args[0]
+        arm_args_1 = self.arm_args[1]
+        R_t = np.array([
+            [np.cos(arm_args_0),0,-np.sin(arm_args_0)],
+            [0                 ,1,                  0],
+            [np.sin(arm_args_0),0, np.cos(arm_args_0)],
+            ])
+        R_p = np.array([
+            [1,                 0,                  0],
+            [0,np.cos(arm_args_1),-np.sin(arm_args_1)],
+            [0,np.sin(arm_args_1), np.cos(arm_args_1)],
+        ])
+
+        W_xyz = R_t@R_p@Camera_coordinate
+        W_xyz[1] *= -1
+        W_xyz *= 1000
+        W_xyz += np.array([x,y,z])
+
+        return W_xyz
+    def image2world(self):
+        x,y,z = self.arm_pos[0],self.arm_pos[1],self.arm_pos[2]
+
+        Wdetect = []
+        cam_forcus_w = self.mtx[0,0]
+        cam_forcus_h = self.mtx[1,1]
+        for i in self.detections:
+            try:
+                x,y = float(i[0][0]),float(i[0][1])
+                w,h = float(i[0][2]),float(i[0][3])
+                x -= self.cam_w//2
+                y -= self.cam_h//2
+                cam_coord = np.array([x,y,1])
+                cam_coord[1] *= -1
+                
+                cam_coord[0] /= cam_forcus_w
+                cam_coord[1] /= cam_forcus_h
+
+                vec = self.cvtcam2wor(x,y,z,cam_coord)
+
+                now_y = vec[1]
+
+                vector = vec/now_y*self.book_y
+                self.get_logger().info(f"{vector}")
+            except:
+                pass
+        self.detections = []
+
     def cb(self):
         ret, frame = self.cap.read()
         if ret == True:
+            frame = cv2.undistort(frame, self.mtx, self.dist, None)
+
             result = self.model(frame)
             
-            # self.get_logger().info(f"{len(result)}")
+            for i in result:
+                self.detections.append(i.boxes.xywhn)
 
             annotated_frame = result[0].plot()
+            # self.detections
 
             # フレームを表示
             cv2.imshow('Webcam Live', annotated_frame)

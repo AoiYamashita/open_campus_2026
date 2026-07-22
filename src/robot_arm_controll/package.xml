@@ -9,7 +9,6 @@
 
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
-  <depend>Arm_lib</depend>
   <depend>smbus</depend>
   <depend>tkinter</depend>
   <depend>opencv-python</depend>
