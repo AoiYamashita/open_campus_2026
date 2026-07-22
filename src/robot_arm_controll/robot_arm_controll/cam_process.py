@@ -88,7 +88,7 @@ class Cam_pro(Node):
                     if self.wait_time < 0:
                         msg = Float64MultiArray()
                         msg.data = np.array([W_xyz[0],W_xyz[1],W_xyz[2],-45,90,180])
-                        self.hand_pub.publish(msg)
+                        # self.hand_pub.publish(msg)
                         self.wait_time = 20
 
 

@@ -34,10 +34,18 @@ class Controller(Node):
         self.co_timer = self.create_timer(0.1,self.arm_controll_pro)
 
 
+        self.home_state = [90,135,0,0,90,90]
+
+        self.state_sub = self.create_subscription(UInt8,"state",self.get_state,1)
+        self.state_flag = 0#1:start 2:stop 3:reset
+
         # angle = [90,90,90,90,90,30]
         # for i in range(1,7):
         #     self.arm.Arm_serial_servo_write(i,angle[i-1],10000)
         #     time.sleep(0.02)
+    def get_state(self,msg):
+        self.state_flag = msg.data
+        self.get_logger().info(f"{self.state_flag}")
     def cb(self):
         deg_arr = []
         for i in range(1,7):
@@ -74,6 +82,19 @@ class Controller(Node):
             time.sleep(0.02)
         time.sleep(np.max([0.05,servo_time/1000.0]))
     def arm_controll_pro(self):
+        if self.state_flag == 2:# stop
+            return
+        if self.state_flag == 3:# reset
+            servo_time = 500 # ms
+
+            for id,i in enumerate(self.home_state):
+                self.arm.Arm_serial_servo_write(id+1,int(i),int(servo_time))
+                time.sleep(0.05)
+            time.sleep(servo_time*1.1/1000)
+            return
+
+        #start
+
         if self.initflag:
             return
         arr = self.order_arr.copy()

@@ -20,6 +20,7 @@ setup(
         'smbus',
         'tkinter',
         'opencv-python',
+        "ultralytics",
         ],
     zip_safe=True,
     maintainer='root',
@@ -35,7 +36,8 @@ setup(
         'console_scripts': [
             "controll = robot_arm_controll.controll:main",
             "app = robot_arm_controll.controll_app:main",
-            "cam_process = robot_arm_controll.cam_process:main"
+            "cam_process = robot_arm_controll.cam_process:main",
+            "yolo = robot_arm_controll.yolo_process:main"
         ],
     },
 )

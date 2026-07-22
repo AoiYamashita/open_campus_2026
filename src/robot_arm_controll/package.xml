@@ -13,6 +13,7 @@
   <depend>smbus</depend>
   <depend>tkinter</depend>
   <depend>opencv-python</depend>
+  <depend>ultralytics</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
