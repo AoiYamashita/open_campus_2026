@@ -159,7 +159,7 @@ class Controller(Node):
             H_ea = np.dot(J_ea.T,J_ea)
             g_ea = -J_ea.T*e_ea
 
-            a = 10
+            a = 5
             b = 10
 
             alpha = 0#1/(1+np.exp(a*(np.linalg.norm(e)-b)))

@@ -69,7 +69,8 @@ class YoloPro(Node):
             [0,np.sin(arm_args_1), np.cos(arm_args_1)],
         ])
 
-        cam_hand_delta = np.array([0,0.05,0.115])
+        # cam_hand_delta = np.array([0,0.05,0.115])
+        cam_hand_delta = np.array([0,0.0,0.190])
 
         delta = R_t@R_p@cam_hand_delta
         delta[1] *= -1
@@ -115,12 +116,17 @@ class YoloPro(Node):
 
                 cam_coord = np.array([x*depth/(cam_forcus_w),y*depth/(cam_forcus_h),depth])
 
-                vec = self.cvtcam2wor(self.arm_pos[0],self.arm_pos[1],self.arm_pos[2],cam_coord)
-                # self.get_logger().info(f"{vec}")
+                W_xyz = self.cvtcam2wor(self.arm_pos[0],self.arm_pos[1],self.arm_pos[2],cam_coord)
+                if self.wait_time < 0:
+                    msg = Float64MultiArray()
+                    msg.data = np.array([W_xyz[0],W_xyz[1]+20,W_xyz[2],-45,90,180])
+                    self.hand_pub.publish(msg)
+                    self.wait_time = 100
 
             except:
                 pass
         self.detections = []
+        self.wait_time -= 1
 
     def cb(self):
         ret, frame = self.cap.read()
