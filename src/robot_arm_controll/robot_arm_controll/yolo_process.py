@@ -55,7 +55,6 @@ class YoloPro(Node):
     def get_pos(self,msg):
         pos = msg.data
         self.arm_pos = np.array(pos[0:3])
-
     def cvtcam2wor(self,x,y,z,Camera_coordinate):
         arm_args_0 = self.arm_args[0]
         arm_args_1 = self.arm_args[1]
@@ -70,21 +69,33 @@ class YoloPro(Node):
             [0,np.sin(arm_args_1), np.cos(arm_args_1)],
         ])
 
+        cam_hand_delta = np.array([0,0.05,0.115])
+
+        delta = R_t@R_p@cam_hand_delta
+        delta[1] *= -1
+        delta *= 1000
+
+
         W_xyz = R_t@R_p@Camera_coordinate
         W_xyz[1] *= -1
         W_xyz *= 1000
 
         W_y_now = W_xyz[1]
 
-        vector_length = (self.book_y - z)/W_y_now
+        x -= delta[0]
+        y -= delta[1]
+        z -= delta[2]
+
+        vector_length = (self.book_y - y)/W_y_now
 
         W_xyz *= vector_length
 
         W_xyz += np.array([x,y,z])
 
+        self.get_logger().info(f"{W_xyz}")
+
         return W_xyz
     def image2world(self):
-        x,y,z = self.arm_pos[0],self.arm_pos[1],self.arm_pos[2]
 
         Wdetect = []
         cam_forcus_w = self.mtx[0,0]
@@ -93,17 +104,20 @@ class YoloPro(Node):
             try:
                 x,y = float(i[0][0]),float(i[0][1])
                 w,h = float(i[0][2]),float(i[0][3])
-                x -= self.cam_w//2
-                y -= self.cam_h//2
-                cam_coord = np.array([x,y,1])
-                cam_coord[1] *= -1
+                x -= 0.5
+                y -= 0.5
+                x *= self.cam_w
+                y *= self.cam_h
+
                 
-                cam_coord[0] /= cam_forcus_w
-                cam_coord[1] /= cam_forcus_h
 
-                vec = self.cvtcam2wor(x,y,z,cam_coord)
+                depth = 1
 
-                self.get_logger().info(f"{vec}")
+                cam_coord = np.array([x*depth/(cam_forcus_w),y*depth/(cam_forcus_h),depth])
+
+                vec = self.cvtcam2wor(self.arm_pos[0],self.arm_pos[1],self.arm_pos[2],cam_coord)
+                # self.get_logger().info(f"{vec}")
+
             except:
                 pass
         self.detections = []
@@ -111,12 +125,13 @@ class YoloPro(Node):
     def cb(self):
         ret, frame = self.cap.read()
         if ret == True:
-            frame = cv2.undistort(frame, self.mtx, self.dist, None)
+            frame_d = cv2.undistort(frame, self.mtx, self.dist, None)
 
-            result = self.model(frame)
+            result = self.model(frame_d)
             
             for i in result:
                 self.detections.append(i.boxes.xywhn)
+                # self.get_logger().info(f"{i.boxes.xywhn}")
 
             annotated_frame = result[0].plot()
             # self.detections
