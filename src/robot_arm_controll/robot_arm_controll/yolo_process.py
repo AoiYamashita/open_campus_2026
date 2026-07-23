@@ -73,6 +73,13 @@ class YoloPro(Node):
         W_xyz = R_t@R_p@Camera_coordinate
         W_xyz[1] *= -1
         W_xyz *= 1000
+
+        W_y_now = W_xyz[1]
+
+        vector_length = (self.book_y - z)/W_y_now
+
+        W_xyz *= vector_length
+
         W_xyz += np.array([x,y,z])
 
         return W_xyz
@@ -96,10 +103,7 @@ class YoloPro(Node):
 
                 vec = self.cvtcam2wor(x,y,z,cam_coord)
 
-                now_y = vec[1]
-
-                vector = vec/now_y*self.book_y
-                self.get_logger().info(f"{vector}")
+                self.get_logger().info(f"{vec}")
             except:
                 pass
         self.detections = []
