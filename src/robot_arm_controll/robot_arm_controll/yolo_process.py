@@ -169,6 +169,8 @@ class YoloPro(Node):
                     continue
                 # if i.boxes.conf[0] < 0.5:
                     # continue
+                # リアルタイム性が不足
+                # self.detectionsにアーム角度，アーム座標を含めるように修正が必要
                 self.detections.append(i.boxes.xywhn)
 
             annotated_frame = result[0].plot()
