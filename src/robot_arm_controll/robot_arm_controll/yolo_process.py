@@ -1,7 +1,10 @@
 import rclpy
+import base64
+import simplejpeg
 
 from rclpy.node import Node
 from std_msgs.msg import UInt8
+from std_msgs.msg import String
 from std_msgs.msg import Int32MultiArray
 from std_msgs.msg import Float64MultiArray
 
@@ -29,7 +32,9 @@ class YoloPro(Node):
         self.deg_sub = self.create_subscription(Int32MultiArray,"arm_degs",self.get_degs,1)
         self.servo_sub = self.create_subscription(Float64MultiArray,"hand_pos",self.get_pos,1)
 
+        self.web_pub = self.create_publisher(String,"webimage",10)
         self.hand_pub = self.create_publisher(Float64MultiArray,"hand_order",10)
+        self.deg_order_pub = self.create_publisher(Int32MultiArray,"arm_order",10)
         self.model = YOLO("/root/open_campus_2026/src/robot_arm_controll/robot_arm_controll/best.pt",
                         verbose=False)
 
@@ -47,6 +52,23 @@ class YoloPro(Node):
         self.wait_time = 0
 
         self.book_y = -100
+
+        self.no_waldo_counter = 0
+
+        self.home_state = [90,135,0,0,90,90]
+    def search_waldo(self):
+        self.no_waldo_counter += 1
+        lim = 60
+        if self.no_waldo_counter < lim:
+            return
+        # self.get_logger().info(f"{self.no_waldo_counter}")
+
+        if self.no_waldo_counter % 10 == 0:
+            state = self.home_state.copy()
+            state[0] = int(90-90*np.cos(np.pi*(self.no_waldo_counter-lim)/100))
+            msg = Int32MultiArray()
+            msg.data = state
+            self.deg_order_pub.publish(msg)
 
     def get_degs(self,msg):
         degs = msg.data
@@ -98,6 +120,13 @@ class YoloPro(Node):
         return W_xyz
     def image2world(self):
 
+
+        if self.detections == []:
+            self.search_waldo()
+            return
+        
+        self.no_waldo_counter = 0
+
         Wdetect = []
         cam_forcus_w = self.mtx[0,0]
         cam_forcus_h = self.mtx[1,1]
@@ -110,8 +139,6 @@ class YoloPro(Node):
                 x *= self.cam_w
                 y *= self.cam_h
 
-                
-
                 depth = 1
 
                 cam_coord = np.array([x*depth/(cam_forcus_w),y*depth/(cam_forcus_h),depth])
@@ -119,7 +146,7 @@ class YoloPro(Node):
                 W_xyz = self.cvtcam2wor(self.arm_pos[0],self.arm_pos[1],self.arm_pos[2],cam_coord)
                 if self.wait_time < 0:
                     msg = Float64MultiArray()
-                    msg.data = np.array([W_xyz[0],W_xyz[1]+20,W_xyz[2],-45,90,180])
+                    msg.data = np.array([W_xyz[0],W_xyz[1]+20,W_xyz[2],-45,90,0])
                     self.hand_pub.publish(msg)
                     self.wait_time = 100
 
@@ -135,9 +162,14 @@ class YoloPro(Node):
 
             result = self.model(frame_d)
             
+            
             for i in result:
+                # self.get_logger().info(f"{i.boxes.conf[0]}")
+                if len(i.boxes) == 0:
+                    continue
+                # if i.boxes.conf[0] < 0.5:
+                    # continue
                 self.detections.append(i.boxes.xywhn)
-                # self.get_logger().info(f"{i.boxes.xywhn}")
 
             annotated_frame = result[0].plot()
             # self.detections
@@ -145,7 +177,11 @@ class YoloPro(Node):
             # フレームを表示
             cv2.imshow('Webcam Live', annotated_frame)
 
-            # self.get_logger().info(f"{corners}")
+            # self.get_logger().info(f"send image")
+            img_jpeg = simplejpeg.encode_jpeg(annotated_frame, colorspace = "BGR", quality = 50)
+            pub_msg = String()
+            pub_msg.data = base64.b64encode(img_jpeg).decode()
+            self.web_pub.publish(pub_msg)
 
             # 'q'キーが押されたらループから抜ける
             if cv2.waitKey(1) & 0xFF == ord('q'):

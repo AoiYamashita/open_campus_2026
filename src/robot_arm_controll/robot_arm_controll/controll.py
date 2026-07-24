@@ -27,11 +27,11 @@ class Controller(Node):
 
         self.servo_pub = self.create_publisher(Int32MultiArray,"arm_degs",10)
         self.servo_sub = self.create_subscription(Int32MultiArray,"arm_order",self.app_order,1)
-        self.hand_pub = self.create_publisher(Float64MultiArray,"hand_pos",10)
-        self.hand_sub = self.create_subscription(Float64MultiArray,"hand_order",self.hand_pos_order,10)
+        self.hand_pub = self.create_publisher(Float64MultiArray,"hand_pos",1)
+        self.hand_sub = self.create_subscription(Float64MultiArray,"hand_order",self.hand_pos_order,1)
 
         self.timer = self.create_timer(0.1,self.cb)
-        self.co_timer = self.create_timer(0.1,self.arm_controll_pro)
+        # self.co_timer = self.create_timer(1.0,self.arm_controll_pro)
 
 
         self.home_state = [90,135,0,0,90,90]
@@ -74,14 +74,24 @@ class Controller(Node):
                     self.servo_deg_arr[5]]
         self.hand_pub.publish(msg)
         self.number += 1
+
+        self.flag = False
     def app_order(self,msg):
+        # self.get_logger().info(f"{msg.data},{self.flag}")
+        if self.flag:
+            return
+        self.flag = True
         arr = msg.data
-        servo_time = 1000 # ms
+        servo_time = 800 # ms
         for id,i in enumerate(arr):
             self.arm.Arm_serial_servo_write(id+1,i,servo_time)
             time.sleep(0.02)
-        time.sleep(np.max([0.05,servo_time/1000.0]))
+        time.sleep(1.1*servo_time/1000.0)
+        self.flag = False
     def arm_controll_pro(self):
+        if self.flag:
+            return
+        self.flag = True
         if self.state_flag == 2:# stop
             return
         if self.state_flag == 3:# reset
@@ -181,20 +191,29 @@ class Controller(Node):
 
         degs[1:4] += np.degrees(delta)
 
-        self.get_logger().info(f"{degs}")
-
         max_ddeg = np.max(abs(np.degrees(delta)))
 
         servo_time = 50*max_ddeg # ms
 
-        for id,i in enumerate(degs):
+        degs = np.clip(degs,0,180)
+
+        self.get_logger().info(f"{degs}")
+
+        degs[0] = np.clip(degs[0],0,180)
+        degs[2] = np.min([degs[2],90])
+        degs[3] = np.min([degs[3],90])
+
+        id_and_degs = [[id,i] for id,i in enumerate(degs)]
+
+        for id,i in id_and_degs[::-1]:
             self.arm.Arm_serial_servo_write(id+1,int(i),int(servo_time))
             time.sleep(0.05)
         time.sleep(servo_time*1.1/1000)
-        
+        self.flag = False
     def hand_pos_order(self,msg):
         self.initflag = False
         self.order_arr = np.array(msg.data)
+        self.arm_controll_pro()
 
 def main():
     rclpy.init()
