@@ -16,5 +16,10 @@ def generate_launch_description():
             executable = "controll",
             output = "screen"
             )
+    web_socket = launch_ros.actions.Node(
+		package = "rosbridge_server",
+		executable = "rosbridge_websocket",
+		output = "screen"
+		)
 
-    return launch.LaunchDescription([yolo,controller])
+    return launch.LaunchDescription([yolo,controller,web_socket])

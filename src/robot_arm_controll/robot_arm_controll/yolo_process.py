@@ -5,6 +5,7 @@ import simplejpeg
 from rclpy.node import Node
 from std_msgs.msg import UInt8
 from std_msgs.msg import String
+from std_msgs.msg import Bool
 from std_msgs.msg import Int32MultiArray
 from std_msgs.msg import Float64MultiArray
 
@@ -38,6 +39,8 @@ class YoloPro(Node):
         self.model = YOLO("/root/open_campus_2026/src/robot_arm_controll/robot_arm_controll/best-3.pt",
                         verbose=False)
 
+        self.web_finish_pub = self.create_publisher(Bool,"isfinish",1)
+
         self.timer = self.create_timer(0.03,self.cb)
         self.makeWorldCoord = self.create_timer(0.03,self.image2world)
 
@@ -55,8 +58,17 @@ class YoloPro(Node):
 
         self.no_waldo_counter = 0
 
+        self.state_sub = self.create_subscription(UInt8,"state",self.get_state,1)
+        self.state_flag = 0#1:start 2:stop 3:reset
+
+        self.finish_search = False
+
         self.home_state = [90,135,0,0,90,90]
         self.long_state = [90,40,70,15,90,90]
+    def get_state(self,msg):
+        self.state_flag = msg.data
+        if self.state_flag == 3:
+            self.finish_search = False
     def search_waldo(self):
         self.no_waldo_counter += 1
         lim = 60
@@ -126,12 +138,16 @@ class YoloPro(Node):
 
         return W_xyz
     def image2world(self):
-
+        if self.finish_search:
+            self.get_logger().info("finish!!!")
+            msg = Bool()
+            msg.data = True
+            self.web_finish_pub.publish(msg)
+            return
 
         if self.detections == []:
             self.search_waldo()
             return
-        
         self.no_waldo_counter = 0
 
         Wdetect = []
@@ -156,7 +172,10 @@ class YoloPro(Node):
                     msg.data = np.array([W_xyz[0],W_xyz[1]+20,W_xyz[2],-45,90,0])
                     self.hand_pub.publish(msg)
                     self.wait_time = 100
-
+                q = W_xyz
+                q[1] += 20
+                if np.linalg.norm(q-self.arm_pos) < 10:
+                    self.finish_search = True
             except:
                 pass
         self.detections = []
