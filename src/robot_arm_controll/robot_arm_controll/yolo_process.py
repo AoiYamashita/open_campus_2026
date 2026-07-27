@@ -77,9 +77,9 @@ class YoloPro(Node):
     def get_pos(self,msg):
         pos = msg.data
         self.arm_pos = np.array(pos[0:3])
-    def cvtcam2wor(self,x,y,z,Camera_coordinate):
-        arm_args_0 = self.arm_args[0]
-        arm_args_1 = self.arm_args[1]
+    def cvtcam2wor(self,x,y,z,Camera_coordinate,args):
+        arm_args_0 = args[0]
+        arm_args_1 = args[1]
         R_t = np.array([
             [np.cos(arm_args_0),0,-np.sin(arm_args_0)],
             [0                 ,1,                  0],
@@ -130,7 +130,7 @@ class YoloPro(Node):
         Wdetect = []
         cam_forcus_w = self.mtx[0,0]
         cam_forcus_h = self.mtx[1,1]
-        for i in self.detections:
+        for i,arg,pos in self.detections:
             try:
                 x,y = float(i[0][0]),float(i[0][1])
                 w,h = float(i[0][2]),float(i[0][3])
@@ -143,7 +143,7 @@ class YoloPro(Node):
 
                 cam_coord = np.array([x*depth/(cam_forcus_w),y*depth/(cam_forcus_h),depth])
 
-                W_xyz = self.cvtcam2wor(self.arm_pos[0],self.arm_pos[1],self.arm_pos[2],cam_coord)
+                W_xyz = self.cvtcam2wor(pos[0],pos[1],pos[2],cam_coord,arg)
                 if self.wait_time < 0:
                     msg = Float64MultiArray()
                     msg.data = np.array([W_xyz[0],W_xyz[1]+20,W_xyz[2],-45,90,0])
@@ -171,7 +171,7 @@ class YoloPro(Node):
                     # continue
                 # リアルタイム性が不足
                 # self.detectionsにアーム角度，アーム座標を含めるように修正が必要
-                self.detections.append(i.boxes.xywhn)
+                self.detections.append((i.boxes.xywhn,self.arm_args.copy(),self.arm_pos.copy()))
 
             annotated_frame = result[0].plot()
             # self.detections
