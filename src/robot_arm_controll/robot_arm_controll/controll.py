@@ -32,7 +32,7 @@ class Controller(Node):
         self.hand_sub = self.create_subscription(Float64MultiArray,"hand_order",self.hand_pos_order,1)
 
         self.timer = self.create_timer(0.05,self.cb)
-        # self.co_timer = self.create_timer(1.0,self.arm_controll_pro)
+        self.reset_timer = self.create_timer(1.0,self.reset_pos)
 
 
         self.home_state = [90,135,0,0,90,90]
@@ -80,6 +80,8 @@ class Controller(Node):
         self.flag = False
     def app_order(self,msg):
         # self.get_logger().info(f"{msg.data},{self.flag}")
+        if self.state_flag == 2 or self.state_flag == 3:
+            return
         if self.flag:
             return
         self.flag = True
@@ -90,10 +92,7 @@ class Controller(Node):
             time.sleep(0.02)
         time.sleep(1.1*servo_time/1000.0)
         self.flag = False
-    def arm_controll_pro(self):
-        if self.flag:
-            return
-        self.flag = True
+    def reset_pos(self):
         if self.state_flag == 2:# stop
             return
         if self.state_flag == 3:# reset
@@ -103,6 +102,12 @@ class Controller(Node):
                 self.arm.Arm_serial_servo_write(id+1,int(i),int(servo_time))
                 time.sleep(0.05)
             time.sleep(servo_time*1.1/1000)
+            return
+    def arm_controll_pro(self):
+        if self.flag:
+            return
+        self.flag = True
+        if self.state_flag == 2 or self.state_flag == 3:# reset
             return
 
         #start
@@ -209,7 +214,7 @@ class Controller(Node):
 
         for id,i in id_and_degs[::-1]:
             self.arm.Arm_serial_servo_write(id+1,int(i),int(servo_time))
-            time.sleep(0.02)
+            time.sleep(0.05)
         time.sleep(servo_time*1.1/1000)
         self.flag = False
     def hand_pos_order(self,msg):
