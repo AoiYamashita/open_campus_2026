@@ -21,6 +21,7 @@ class Controller(Node):
         self.arm = Arm_Lib.Arm_Device()
 
         self.servo_deg_arr = [0,0,0,0,0,0]
+        self.servo_deg_arr_org = [0,0,0,0,0,0]
         self.order_arr = [0,0,0,0,0,0]
         self.initflag = True
         self.number = 0
@@ -30,7 +31,7 @@ class Controller(Node):
         self.hand_pub = self.create_publisher(Float64MultiArray,"hand_pos",1)
         self.hand_sub = self.create_subscription(Float64MultiArray,"hand_order",self.hand_pos_order,1)
 
-        self.timer = self.create_timer(0.03,self.cb)
+        self.timer = self.create_timer(0.05,self.cb)
         # self.co_timer = self.create_timer(1.0,self.arm_controll_pro)
 
 
@@ -51,7 +52,7 @@ class Controller(Node):
         for i in range(1,7):
             deg = self.arm.Arm_serial_servo_read(i)
             if deg is None:
-                deg = self.servo_deg_arr[i-1]
+                deg = self.servo_deg_arr[i-1] + (self.servo_deg_arr[i-1] - self.servo_deg_arr_org[i-1])
             deg_arr.append(deg)
         
         msg = Int32MultiArray()
@@ -60,6 +61,7 @@ class Controller(Node):
         # deg_arr = [90,0,90,23,102,40]
         self.servo_pub.publish(msg)
 
+        self.servo_deg_arr_org = self.servo_deg_arr.copy()
         self.servo_deg_arr = deg_arr.copy()
 
         msg = Float64MultiArray()
@@ -82,7 +84,7 @@ class Controller(Node):
             return
         self.flag = True
         arr = msg.data
-        servo_time = 800 # ms
+        servo_time = 500 # ms
         for id,i in enumerate(arr):
             self.arm.Arm_serial_servo_write(id+1,i,servo_time)
             time.sleep(0.02)
@@ -207,7 +209,7 @@ class Controller(Node):
 
         for id,i in id_and_degs[::-1]:
             self.arm.Arm_serial_servo_write(id+1,int(i),int(servo_time))
-            time.sleep(0.05)
+            time.sleep(0.02)
         time.sleep(servo_time*1.1/1000)
         self.flag = False
     def hand_pos_order(self,msg):
