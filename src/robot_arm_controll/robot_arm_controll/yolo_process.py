@@ -35,7 +35,7 @@ class YoloPro(Node):
         self.web_pub = self.create_publisher(String,"webimage",10)
         self.hand_pub = self.create_publisher(Float64MultiArray,"hand_order",10)
         self.deg_order_pub = self.create_publisher(Int32MultiArray,"arm_order",10)
-        self.model = YOLO("/root/open_campus_2026/src/robot_arm_controll/robot_arm_controll/best.pt",
+        self.model = YOLO("/root/open_campus_2026/src/robot_arm_controll/robot_arm_controll/best-3.pt",
                         verbose=False)
 
         self.timer = self.create_timer(0.03,self.cb)
@@ -56,19 +56,26 @@ class YoloPro(Node):
         self.no_waldo_counter = 0
 
         self.home_state = [90,135,0,0,90,90]
+        self.long_state = [90,40,70,15,90,90]
     def search_waldo(self):
         self.no_waldo_counter += 1
         lim = 60
         if self.no_waldo_counter < lim:
             return
         # self.get_logger().info(f"{self.no_waldo_counter}")
-
+        freq = 100
         if self.no_waldo_counter % 10 == 0:
             state = self.home_state.copy()
-            state[0] = int(90-90*np.cos(np.pi*(self.no_waldo_counter-lim)/100))
+            if 2*freq < (self.no_waldo_counter-lim) and (self.no_waldo_counter-lim) < 3*freq:
+                state = self.long_state.copy()
+            state[0] = int(90-70*np.cos(np.pi*(self.no_waldo_counter-lim)/freq))
+            if freq < (self.no_waldo_counter-lim) and (self.no_waldo_counter-lim) < 2*freq:
+                state[1] = 100
             msg = Int32MultiArray()
             msg.data = state
             self.deg_order_pub.publish(msg)
+        if self.no_waldo_counter-lim > 3*freq:
+            self.no_waldo_counter = lim
 
     def get_degs(self,msg):
         degs = msg.data
@@ -166,6 +173,9 @@ class YoloPro(Node):
             for i in result:
                 # self.get_logger().info(f"{i.boxes.conf[0]}")
                 if len(i.boxes) == 0:
+                    continue
+                # self.get_logger().info(f"{i.boxes}")
+                if i.boxes.cls[0] != 0:
                     continue
                 # if i.boxes.conf[0] < 0.5:
                     # continue

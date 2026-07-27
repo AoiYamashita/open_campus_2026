@@ -25,12 +25,12 @@ class Controller(Node):
         self.initflag = True
         self.number = 0
 
-        self.servo_pub = self.create_publisher(Int32MultiArray,"arm_degs",10)
+        self.servo_pub = self.create_publisher(Int32MultiArray,"arm_degs",1)
         self.servo_sub = self.create_subscription(Int32MultiArray,"arm_order",self.app_order,1)
         self.hand_pub = self.create_publisher(Float64MultiArray,"hand_pos",1)
         self.hand_sub = self.create_subscription(Float64MultiArray,"hand_order",self.hand_pos_order,1)
 
-        self.timer = self.create_timer(0.1,self.cb)
+        self.timer = self.create_timer(0.03,self.cb)
         # self.co_timer = self.create_timer(1.0,self.arm_controll_pro)
 
 
@@ -212,7 +212,13 @@ class Controller(Node):
         self.flag = False
     def hand_pos_order(self,msg):
         self.initflag = False
-        self.order_arr = np.array(msg.data)
+        order = np.array(msg.data)
+        leng = np.sqrt(order[0]**2+order[2]**2)
+        R_lim = 120
+        if leng < R_lim:
+            order[0] *= R_lim/leng
+            order[2] *= R_lim/leng
+        self.order_arr = order.copy()
         self.arm_controll_pro()
 
 def main():
