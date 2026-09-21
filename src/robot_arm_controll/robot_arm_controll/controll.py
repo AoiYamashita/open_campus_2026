@@ -87,9 +87,10 @@ class Controller(Node):
         self.flag = True
         arr = msg.data
         servo_time = 500 # ms
-        for id,i in enumerate(arr):
+        id_and_degs = [[id,i] for id,i in enumerate(arr)]
+        for id,i in id_and_degs[::-1]:
             self.arm.Arm_serial_servo_write(id+1,i,servo_time)
-            time.sleep(0.02)
+            time.sleep(0.05)
         time.sleep(1.1*servo_time/1000.0)
         self.flag = False
     def reset_pos(self):

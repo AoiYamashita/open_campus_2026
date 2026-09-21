@@ -174,7 +174,7 @@ class YoloPro(Node):
                     self.wait_time = 100
                 q = W_xyz
                 q[1] += 20
-                if np.linalg.norm(q-self.arm_pos) < 10:
+                if np.linalg.norm(q-self.arm_pos) < 15:
                     self.finish_search = True
             except:
                 pass
