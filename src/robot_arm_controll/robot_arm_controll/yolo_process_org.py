@@ -16,12 +16,68 @@ from ultralytics import YOLO
 import time
 from logging import getLogger
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+class BayesianMap:
+    def __init__(self,ax,w,h):
+        self.map_width = w
+        self.map_height = h
+        self.p_map = np.full((h,w),1/(h*w),dtype=np.float32)
+        self.center = np.array([w//2,h//2])
+        self.ax = ax
+        self.observe_map = np.ones((h,w),dtype=np.float32)
+        pass
+    def observe(self,x,y,size_w,size_h,prob=1):
+        # 座標
+        py, px = np.indices((size_h,size_w))
+
+        mu_x = size_w//2
+        mu_y = size_h//2
+
+        sigma_x = mu_x/3
+        sigma_y = mu_y/3
+
+        gauss = np.exp(-(px-mu_x)**2/(2*sigma_x**2)-(py-mu_y)**2/(2*sigma_y**2))
+
+        gauss /= gauss.sum()
+        gauss *= prob
+        
+        min_x = np.max([x-mu_x,0])
+        min_y = np.max([y-mu_y,0])
+        max_x = np.min([x+(size_w-mu_x),self.map_width])
+        max_y = np.min([y+(size_h-mu_y),self.map_height])
+        
+        try:
+            self.observe_map[min_y:max_y,min_x:max_x] += gauss
+        except:
+            pass
+
+    def update(self):
+        self.p_map *= self.observe_map
+        self.p_map /= np.sum(self.p_map)
+        self.observe_map = np.ones((self.map_height,self.map_width))
+        pass
+    def get_top_1(self):
+        point = np.argmax(self.p_map)
+        x = point % self.map_width
+        y = point // self.map_height
+        x -= self.center[0]
+        # y -= self.center[1]
+        value = self.p_map[y,x]
+        return x,y,value
+    def show(self):
+        self.ax.imshow(self.p_map)
+
+
 
 class YoloPro(Node):
     def __init__(self):
         super().__init__("yolo_process")
         logger = getLogger('ultralytics')
         logger.disabled = True
+
+        self.map = BayesianMap(None,600,400)
 
         # self.get_logger().info("start process")
         self.cap = cv2.VideoCapture(0,cv2.CAP_V4L2)
@@ -65,15 +121,19 @@ class YoloPro(Node):
 
         self.home_state = [90,135,0,0,90,90]
         self.long_state = [90,40,70,15,90,90]
+        self.search_epoch_flag = False
     def get_state(self,msg):
         self.state_flag = msg.data
         if self.state_flag == 3:
             self.finish_search = False
+            self.search_epoch_flag = False
+        self.map = BayesianMap(None,600,400)
+        self.no_waldo_counter = 0
     def search_waldo(self):
         self.no_waldo_counter += 1
         lim = 60
-        if self.no_waldo_counter < lim:
-            return
+        # if self.no_waldo_counter < lim:
+        #     return
         # self.get_logger().info(f"{self.no_waldo_counter}")
         freq = 100
         if self.no_waldo_counter % 10 == 0:
@@ -88,6 +148,7 @@ class YoloPro(Node):
             self.deg_order_pub.publish(msg)
         if self.no_waldo_counter-lim > 3*freq:
             self.no_waldo_counter = lim
+            self.search_epoch_flag = True
 
     def get_degs(self,msg):
         degs = msg.data
@@ -111,7 +172,8 @@ class YoloPro(Node):
         ])
 
         # cam_hand_delta = np.array([0,0.05,0.115])
-        cam_hand_delta = np.array([0,0.0,0.190])
+        cam_hand_delta = np.array([0,-0.05,0.190])
+        # cam_hand_delta = np.array([0,0.0,0.250])
 
         delta = R_t@R_p@cam_hand_delta
         delta[1] *= -1
@@ -144,42 +206,62 @@ class YoloPro(Node):
             msg.data = True
             self.web_finish_pub.publish(msg)
             return
+        else:
+            msg = Bool()
+            msg.data = False
+            self.web_finish_pub.publish(msg)
 
-        if self.detections == []:
-            self.search_waldo()
-            return
-        self.no_waldo_counter = 0
+        # if self.detections == []:
+        #     self.search_waldo()
+        #     return
+        # self.search_waldo()
+        # self.no_waldo_counter = 0
 
         Wdetect = []
         cam_forcus_w = self.mtx[0,0]
         cam_forcus_h = self.mtx[1,1]
         for i,arg,pos in self.detections:
-            try:
-                x,y = float(i[0][0]),float(i[0][1])
-                w,h = float(i[0][2]),float(i[0][3])
-                x -= 0.5
-                y -= 0.5
-                x *= self.cam_w
-                y *= self.cam_h
+            x,y = float(i[0][0]),float(i[0][1])
+            w,h = float(i[0][2]),float(i[0][3])
+            x -= 0.5
+            y -= 0.5
+            x *= self.cam_w
+            y *= self.cam_h
 
-                depth = 1
+            depth = 1
 
-                cam_coord = np.array([x*depth/(cam_forcus_w),y*depth/(cam_forcus_h),depth])
+            cam_coord = np.array([x*depth/(cam_forcus_w),y*depth/(cam_forcus_h),depth])
 
-                W_xyz = self.cvtcam2wor(pos[0],pos[1],pos[2],cam_coord,arg)
-                if self.wait_time < 0:
-                    msg = Float64MultiArray()
-                    msg.data = np.array([W_xyz[0],W_xyz[1]+20,W_xyz[2],-45,90,0])
-                    self.hand_pub.publish(msg)
-                    self.wait_time = 100
-                q = W_xyz
-                q[1] += 20
-                if np.linalg.norm(q-self.arm_pos) < 15:
-                    self.finish_search = True
-            except:
-                pass
+            W_xyz = self.cvtcam2wor(pos[0],pos[1],pos[2],cam_coord,arg)
+
+            self.map.observe(int(W_xyz[0])+self.map.map_width//2,int(W_xyz[2]),10,10)
+            # if self.wait_time < 0:
+            #     msg = Float64MultiArray()
+            #     msg.data = np.array([W_xyz[0],W_xyz[1]+20,W_xyz[2],-45,90,0])
+            #     self.hand_pub.publish(msg)
+            #     self.wait_time = 100
+            # q = W_xyz
+            # q[1] += 20
+            # if np.linalg.norm(q-self.arm_pos) < 15:
+            #     self.finish_search = True
+        
+        self.get_logger().info(f"{self.map.get_top_1()}")
+        self.map.update()
         self.detections = []
         self.wait_time -= 1
+
+        if self.search_epoch_flag:
+            x,y,value = self.map.get_top_1()
+            msg = Float64MultiArray()
+            msg.data = np.array([x,-100+20,y,-45,90,0])
+            self.hand_pub.publish(msg)
+            self.wait_time = 50
+            q = np.array([x,-100+20,y])
+            if np.linalg.norm(q-self.arm_pos) < 15:
+                self.finish_search = True
+            self.get_logger().info(f"{np.linalg.norm(q-self.arm_pos)}")
+        else:
+            self.search_waldo()
 
     def cb(self):
         ret, frame = self.cap.read()

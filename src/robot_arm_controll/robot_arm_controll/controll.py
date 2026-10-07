@@ -201,7 +201,7 @@ class Controller(Node):
 
         max_ddeg = np.max(abs(np.degrees(delta)))
 
-        servo_time = 50*max_ddeg # ms
+        servo_time = 100*max_ddeg # ms
 
         degs = np.clip(degs,0,180)
 
